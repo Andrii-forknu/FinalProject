@@ -267,7 +267,12 @@ class HourglassApp(tk.Tk):
         self.resizable(False, False)
 
         style = ttk.Style(self)
-        style.theme_use("clam") 
+        try:
+            # Attempt to use a modern theme if available (e.g., azure.tcl)
+            self.tk.call("source", "azure.tcl") 
+            style.theme_use("azure")
+        except tk.TclError:
+            style.theme_use("clam") 
 
         HourglassCanvas(self).pack(padx=10, pady=10)
 
