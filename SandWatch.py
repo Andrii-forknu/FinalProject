@@ -5,12 +5,12 @@ from dataclasses import dataclass
 
 # ====== Configuration constants ======
 CANVAS_W, CANVAS_H = 400, 600  # Canvas size
-GLASS_MARGIN = 60  # Horizontal margin from canvas border to glass side
-NECK_HEIGHT = 20  # Height of the neck opening
-FALL_STREAM_WIDTH = 4  # Width of falling sand stream in pixels
-TICK_MS = 30  # Animation tick in milliseconds (≈33 FPS)
-PARTICLE_RADIUS = 2  # Radius of individual sand particles
-MAX_PARTICLES = 120  # Upper limit to co-existing particles (performance)
+GLASS_MARGIN = 60              # Horizontal margin from canvas border to glass side
+NECK_HEIGHT = 20               # Height of the neck opening
+FALL_STREAM_WIDTH = 4          # Width of falling sand stream in pixels
+TICK_MS = 30                   # Animation tick in milliseconds (≈33 FPS)
+PARTICLE_RADIUS = 2            # Radius of individual sand particles
+MAX_PARTICLES = 120            # Upper limit to co-existing particles (performance)
 
 
 
@@ -55,6 +55,7 @@ class HourglassCanvas(ttk.Frame):
 
         self.glass_shape_details: dict = {}  # To store calculated glass geometry if needed
         self.after_idle(self.draw_static)
+
     def start(self) -> None:
         ...
 
