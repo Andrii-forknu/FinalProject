@@ -22,9 +22,10 @@ class Particle:
     vy: float
 
 
-class HourglassCanvas(ttk.Frame):
+class HourglassCanvas(tk.Frame):
     def __init__(self, master: tk.Misc, *, duration_s: int = 5) -> None:
         super().__init__(master)
+
         self.duration_s = duration_s
         self.start_time: float | None = None
         self.elapsed = 0.0
@@ -33,6 +34,11 @@ class HourglassCanvas(ttk.Frame):
         self.bottom_fraction = 0.0
         self.particles: list[Particle] = []
         self.neck_width = 20  # Width of the hourglass neck
+
+        # Timer label to show remaining time
+        self.timer_var = tk.StringVar(value="Time left: 0.0s")
+        self.timer_label = ttk.Label(self, textvariable=self.timer_var, font=("Segoe UI", 12, "bold"))
+        self.timer_label.grid(row=2, column=0, columnspan=2, sticky="w")
 
         self.canvas = tk.Canvas(self, width=CANVAS_W, height=CANVAS_H,
                                 bg="#111", highlightthickness=0)
@@ -108,6 +114,8 @@ class HourglassCanvas(ttk.Frame):
 
         self.update_particles()
         self.redraw()
+        remaining = max(0.0, self.duration_s - self.elapsed)
+        self.timer_var.set(f"Time left: {remaining:.1f}s")
 
     def update_particles(self) -> None:
         if self.running and len(self.particles) < MAX_PARTICLES:
@@ -317,6 +325,7 @@ class HourglassApp(tk.Tk):
         super().__init__()
         self.title("Animated Hourglass")
         self.resizable(False, False)
+        self.configure(bg="gray")
 
         style = ttk.Style(self)
         try:
