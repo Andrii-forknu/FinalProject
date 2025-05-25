@@ -2,8 +2,6 @@
 
 An elegant and interactive hourglass timer application built with Python's tkinter library. Features realistic sand physics simulation, smooth animations, and a modern user interface.
 
-![SandWatch Demo](https://via.placeholder.com/400x600/111111/F5DEB3?text=Hourglass+Timer)
-
 ## Features
 
 - **Realistic Physics**: Individual sand particles with gravity simulation
@@ -137,4 +135,4 @@ Potential improvements for the application:
 - Export animation as GIF
 
 ## License
-MIT
+MIT License
