@@ -17,13 +17,33 @@ MAX_PARTICLES = 120  # Upper limit to co-existing particles (performance)
 # ====== Helper dataclass ======
 @dataclass
 class Particle:
+    """Represents a single falling sand particle.
+    
+    Attributes:
+        x: Horizontal position of the particle
+        y: Vertical position of the particle  
+        vy: Vertical velocity (downward motion speed)
+    """
     x: float
     y: float
     vy: float
 
 
 class HourglassCanvas(tk.Frame):
+    """Main canvas widget that renders and animates the hourglass simulation.
+    
+    This class handles the visual representation of an hourglass timer with
+    animated sand flowing from top chamber to bottom chamber. It includes
+    realistic physics simulation for falling sand particles.
+    """
+    
     def __init__(self, master: tk.Misc, *, duration_s: int = 5) -> None:
+        """Initialize the hourglass canvas with controls and timer.
+        
+        Args:
+            master: Parent tkinter widget
+            duration_s: Default timer duration in seconds
+        """
         super().__init__(master)
 
         self.duration_s = duration_s
@@ -63,6 +83,11 @@ class HourglassCanvas(tk.Frame):
         self.after_idle(self.draw_static)
 
     def start(self) -> None:
+        """Start or resume the hourglass timer animation.
+        
+        Handles both fresh starts and resuming paused timers. Updates button states
+        and initializes the animation loop. Resets the hourglass if timer has completed.
+        """
         if self.running:
             return
 
@@ -86,6 +111,11 @@ class HourglassCanvas(tk.Frame):
         self.animate()
 
     def stop(self) -> None:
+        """Pause the hourglass timer animation.
+        
+        Stops the animation loop and updates button states. The timer can be
+        resumed later from the current position.
+        """
         if not self.running:
             return
         self.running = False
@@ -93,6 +123,12 @@ class HourglassCanvas(tk.Frame):
         self.stop_btn.config(state="disabled")
 
     def animate(self) -> None:
+        """Main animation loop that updates timer state and redraws the hourglass.
+        
+        Calculates elapsed time, updates sand distribution between chambers,
+        manages particle physics, and schedules the next animation frame.
+        Automatically stops when timer completes.
+        """
         if not self.running:
             return
         now = perf_counter()
@@ -118,6 +154,12 @@ class HourglassCanvas(tk.Frame):
         self.timer_var.set(f"Time left: {remaining:.1f}s")
 
     def update_particles(self) -> None:
+        """Update physics simulation for falling sand particles.
+        
+        Creates new particles at the neck opening when timer is running,
+        updates existing particle positions based on velocity, and removes
+        particles that have landed on the bottom sand pile.
+        """
         if self.running and len(self.particles) < MAX_PARTICLES:
             for _ in range(randint(1, 3)):
                 px = CANVAS_W / 2 + uniform(-FALL_STREAM_WIDTH, FALL_STREAM_WIDTH)
@@ -136,6 +178,11 @@ class HourglassCanvas(tk.Frame):
         self.particles = alive
 
     def draw_static(self) -> None:
+        """Draw the static elements of the hourglass that don't change during animation.
+        
+        Renders the glass outline, hourglass frame, and calculates geometry details
+        needed for sand rendering. This is called once during initialization.
+        """
         c = self.canvas
         c.delete("static")
 
@@ -180,6 +227,17 @@ class HourglassCanvas(tk.Frame):
         }
 
     def _get_glass_width_at_y(self, y_coord: float) -> float:
+        """Calculate the internal width of the hourglass at a given Y coordinate.
+        
+        Uses linear interpolation between key geometry points to determine
+        the available width for sand at any vertical position within the glass.
+        
+        Args:
+            y_coord: Vertical position to calculate width for
+            
+        Returns:
+            Internal width of the hourglass at the specified Y coordinate
+        """
         details = self.glass_shape_details
         if not details:  # Not initialized yet
             # Fallback or raise error, for now, assume draw_static has run.
@@ -219,6 +277,12 @@ class HourglassCanvas(tk.Frame):
         return max(0.0, current_x_right - current_x_left)
 
     def redraw(self) -> None:
+        """Redraw all dynamic elements of the hourglass animation.
+        
+        Clears previous dynamic drawings and renders the current state of
+        sand in both chambers, falling particles, and sand stream.
+        Called every animation frame.
+        """
         c = self.canvas
         c.delete("dynamic")
         self.draw_sand_top()
@@ -226,6 +290,11 @@ class HourglassCanvas(tk.Frame):
         self.draw_falling()
 
     def top_fraction_height(self) -> float:
+        """Calculate the current height of sand in the top chamber.
+        
+        Returns:
+            Height of the sand cone in the top chamber based on remaining sand fraction
+        """
         # Max height of the sand cone in the top chamber.
         # Tip of this cone is visually at self.glass_mid_y - NECK_HEIGHT.
         # Base of this cone is at self.glass_top.
@@ -235,6 +304,11 @@ class HourglassCanvas(tk.Frame):
         return max(0.0, max_h * self.top_fraction)
 
     def bottom_fraction_height(self) -> float:
+        """Calculate the current height of sand pile in the bottom chamber.
+        
+        Returns:
+            Height of the sand pile in the bottom chamber based on accumulated sand fraction
+        """
         # Max height of the sand pile in the bottom chamber.
         # Base of this pile is at self.glass_bottom.
         # Tip of this pile is visually at self.glass_mid_y + NECK_HEIGHT.
@@ -243,6 +317,11 @@ class HourglassCanvas(tk.Frame):
         return max(0.0, max_h * self.bottom_fraction)
 
     def draw_sand_top(self) -> None:
+        """Render the sand cone in the top chamber of the hourglass.
+        
+        Draws a triangular sand mass that shrinks as sand flows out through
+        the neck. The triangle's base width adapts to the hourglass shape.
+        """
         h = self.top_fraction_height()  # Current height of sand mass
         if h <= 1e-3:  # Effectively no sand, or height is negligible
             return
@@ -268,6 +347,11 @@ class HourglassCanvas(tk.Frame):
         )
 
     def draw_sand_bottom(self) -> None:
+        """Render the sand pile in the bottom chamber of the hourglass.
+        
+        Draws a triangular sand pile that grows as sand accumulates. The pile's
+        base width expands progressively as more sand is collected.
+        """
         h = self.bottom_fraction_height()
         if h <= 1e-3:  # Effectively no sand pile
             return
@@ -307,6 +391,11 @@ class HourglassCanvas(tk.Frame):
         )
 
     def draw_falling(self) -> None:
+        """Render the falling sand stream and individual particles.
+        
+        Draws a continuous sand stream through the neck when timer is running,
+        and renders individual falling particles with realistic physics.
+        """
         c = self.canvas
         if self.running:
             # Stream of sand in the neck
@@ -321,7 +410,15 @@ class HourglassCanvas(tk.Frame):
 
 
 class HourglassApp(tk.Tk):
+    """Main application window for the animated hourglass timer.
+    
+    Creates the GUI application with modern styling and contains the
+    hourglass canvas widget. Handles application-level configuration
+    and theme management.
+    """
+    
     def __init__(self) -> None:
+        """Initialize the main application window with styling and layout."""
         super().__init__()
         self.title("Animated Hourglass")
         self.resizable(False, False)
