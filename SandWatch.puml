@@ -1,0 +1,435 @@
+@startuml SandWatch_ClassDiagram
+!define RECTANGLE class
+
+title SandWatch - Hourglass Timer Application\nClass Diagram
+
+' Configuration Constants
+package "Configuration" {
+    class Constants <<utility>> {
+        +CANVAS_W: int = 400
+        +CANVAS_H: int = 600
+        +GLASS_MARGIN: int = 60
+        +NECK_HEIGHT: int = 20
+        +FALL_STREAM_WIDTH: int = 4
+        +TICK_MS: int = 30
+        +PARTICLE_RADIUS: int = 2
+        +MAX_PARTICLES: int = 120
+    }
+}
+
+' Data Classes
+package "Data Models" {
+    class Particle <<dataclass>> {
+        +x: float
+        +y: float
+        +vy: float
+        --
+        +__init__(x: float, y: float, vy: float)
+        +__post_init__()
+    }
+}
+
+' GUI Framework Classes
+package "tkinter" <<external>> {
+    abstract class Tk {
+        +title(text: str)
+        +resizable(width: bool, height: bool)
+        +configure(**kwargs)
+        +mainloop()
+    }
+    
+    abstract class Frame {
+        +pack(**kwargs)
+        +grid(**kwargs)
+    }
+    
+    class Canvas {
+        +create_rectangle(...)
+        +create_polygon(...)
+        +create_line(...)
+        +create_oval(...)
+        +delete(tag: str)
+    }
+    
+    class StringVar {
+        +set(value: str)
+        +get(): str
+    }
+    
+    class IntVar {
+        +set(value: int)
+        +get(): int
+    }
+}
+
+' Main Application Classes
+package "Application Core" {
+    class HourglassCanvas {
+        ' Core Animation State
+        -duration_s: int
+        -start_time: float | None
+        -elapsed: float
+        -running: bool
+        -top_fraction: float
+        -bottom_fraction: float
+        -particles: list[Particle]
+        -neck_width: int
+        
+        ' UI Components
+        -timer_var: StringVar
+        -timer_label: ttk.Label
+        -canvas: Canvas
+        -duration_var: IntVar
+        -start_btn: ttk.Button
+        -stop_btn: ttk.Button
+        
+        ' Geometry
+        -glass_top: float
+        -glass_bottom: float
+        -glass_mid_y: float
+        -glass_left: float
+        -glass_right: float
+        -glass_shape_details: dict
+        
+        --
+        ' Public Methods
+        +__init__(master: tk.Misc, duration_s: int = 5)
+        +start(): None
+        +stop(): None
+        
+        ' Animation Core
+        +animate(): None
+        +update_particles(): None
+        +redraw(): None
+        
+        ' Rendering Methods
+        +draw_static(): None
+        +draw_sand_top(): None
+        +draw_sand_bottom(): None
+        +draw_falling(): None
+        
+        ' Calculation Methods
+        +top_fraction_height(): float
+        +bottom_fraction_height(): float
+        -_get_glass_width_at_y(y_coord: float): float
+    }
+    
+    class HourglassApp {
+        --
+        +__init__(): None
+        -_setup_styling(): None
+    }
+}
+
+' Inheritance Relationships
+Tk <|-- HourglassApp
+Frame <|-- HourglassCanvas
+
+' Composition Relationships
+HourglassApp *-- HourglassCanvas : contains
+HourglassCanvas *-- Canvas : uses
+HourglassCanvas *-- "0..*" Particle : manages
+HourglassCanvas *-- StringVar : timer_var
+HourglassCanvas *-- IntVar : duration_var
+
+' Dependencies
+HourglassCanvas ..> Constants : uses
+HourglassCanvas ..> Particle : creates
+
+' Notes
+note right of Particle
+    Represents individual 
+    falling sand grains with
+    position and velocity
+end note
+
+note right of HourglassCanvas
+    Main component handling:
+    • Animation loop
+    • Physics simulation  
+    • Canvas rendering
+    • User interactions
+end note
+
+note right of HourglassApp
+    Application entry point
+    with styling and theming
+end note
+
+@enduml
+
+@startuml SandWatch_SequenceDiagram
+!theme amiga
+
+title SandWatch - Animation Sequence Diagram
+
+actor User
+participant "HourglassApp" as App
+participant "HourglassCanvas" as Canvas
+participant "Canvas" as TkCanvas
+participant "Particle" as Part
+participant "Timer" as Timer
+
+== Application Startup ==
+User -> App: launch application
+App -> App: __init__()
+App -> Canvas: create HourglassCanvas()
+Canvas -> Canvas: __init__()
+Canvas -> TkCanvas: create Canvas widget
+Canvas -> Canvas: draw_static()
+Canvas -> TkCanvas: draw glass outline
+note right: Static elements drawn once
+
+== Timer Start ==
+User -> Canvas: click Start button
+Canvas -> Canvas: start()
+Canvas -> Canvas: initialize timer state
+Canvas -> Timer: perf_counter()
+Timer -> Canvas: current_time
+Canvas -> Canvas: animate()
+
+== Animation Loop ==
+loop every 30ms (while running)
+    Canvas -> Timer: perf_counter()
+    Timer -> Canvas: current_time
+    Canvas -> Canvas: calculate progress
+    Canvas -> Canvas: update_particles()
+    
+    alt if particles < MAX_PARTICLES
+        loop 1-3 times
+            Canvas -> Part: create new Particle()
+            Part -> Canvas: particle with random velocity
+        end
+    end
+    
+    loop for each existing particle
+        Canvas -> Part: update position (y += vy)
+        alt if particle hit sand pile
+            Canvas -> Part: remove particle
+        end
+    end
+    
+    Canvas -> Canvas: redraw()
+    Canvas -> TkCanvas: delete("dynamic")
+    Canvas -> Canvas: draw_sand_top()
+    Canvas -> TkCanvas: create_polygon(sand_cone)
+    Canvas -> Canvas: draw_sand_bottom()
+    Canvas -> TkCanvas: create_polygon(sand_pile)
+    Canvas -> Canvas: draw_falling()
+    Canvas -> TkCanvas: create_line(sand_stream)
+    
+    loop for each particle
+        Canvas -> TkCanvas: create_oval(particle)
+    end
+    
+    Canvas -> Canvas: update timer display
+    
+    alt if timer not finished
+        Canvas -> Canvas: schedule next frame
+    else timer finished
+        Canvas -> Canvas: stop animation
+        Canvas -> Canvas: update button states
+    end
+end
+
+== Timer Stop ==
+User -> Canvas: click Stop button
+Canvas -> Canvas: stop()
+Canvas -> Canvas: update button states
+note right: Animation paused, can resume
+
+== Timer Resume ==
+User -> Canvas: click Start button (while paused)
+Canvas -> Canvas: start()
+Canvas -> Canvas: adjust start_time for elapsed
+Canvas -> Canvas: animate()
+note right: Continue from current position
+
+@enduml
+
+@startuml SandWatch_ComponentDiagram
+
+title SandWatch - Component Architecture
+
+package "Application Layer" {
+    [HourglassApp] 
+    note right of [HourglassApp]
+        • Application entry point
+        • Window management
+        • Theme configuration
+        • ttk.Style setup
+    end note
+}
+
+package "Presentation Layer" {
+    [HourglassCanvas]
+    [UI Controls]
+    
+    note right of [HourglassCanvas]
+        • Main canvas widget
+        • Animation rendering
+        • User interaction handling
+        • Layout management
+    end note
+    
+    note right of [UI Controls]
+        • Duration input field
+        • Start/Stop buttons  
+        • Timer display label
+        • Grid layout
+    end note
+}
+
+package "Business Logic" {
+    [Animation Engine]
+    [Physics Simulation]
+    [Timer Management]
+    
+    note right of [Animation Engine]
+        • 33 FPS animation loop
+        • Frame scheduling
+        • State management
+        • Rendering coordination
+    end note
+    
+    note right of [Physics Simulation]
+        • Particle lifecycle
+        • Collision detection
+        • Gravity simulation
+        • Performance optimization
+    end note
+    
+    note right of [Timer Management]
+        • Duration tracking
+        • Progress calculation
+        • Start/Stop/Resume logic
+        • Sand distribution
+    end note
+}
+
+package "Data Layer" {
+    [Particle System]
+    [Geometry Calculator]
+    [Configuration]
+    
+    note right of [Particle System]
+        • Particle dataclass
+        • Collection management
+        • Memory cleanup
+        • Performance limiting
+    end note
+    
+    note right of [Geometry Calculator]
+        • Glass shape interpolation
+        • Width calculations
+        • Sand height formulas
+        • Coordinate mapping
+    end note
+    
+    note right of [Configuration]
+        • Visual constants
+        • Performance tuning
+        • Animation parameters
+        • Canvas dimensions
+    end note
+}
+
+package "Platform Layer" {
+    [tkinter Framework]
+    [Python Runtime]
+    
+    note right of [tkinter Framework]
+        • Canvas 2D graphics
+        • Event handling
+        • Widget system
+        • Platform abstraction
+    end note
+}
+
+' Dependencies
+[HourglassApp] --> [HourglassCanvas]
+[HourglassCanvas] --> [UI Controls]
+[HourglassCanvas] --> [Animation Engine]
+[Animation Engine] --> [Physics Simulation]
+[Animation Engine] --> [Timer Management]
+[Physics Simulation] --> [Particle System]
+[Timer Management] --> [Geometry Calculator]
+[Animation Engine] --> [Configuration]
+[HourglassCanvas] --> [tkinter Framework]
+[tkinter Framework] --> [Python Runtime]
+
+@enduml
+
+@startuml SandWatch_StateChart
+
+title SandWatch - Timer State Machine
+
+[*] --> Initialized : create HourglassCanvas
+
+state Initialized {
+    Initialized : timer_start = None
+    Initialized : elapsed = 0.0
+    Initialized : running = False
+    Initialized : particles = []
+    Initialized : draw static elements
+}
+
+Initialized --> Running : start() / first time
+Initialized --> Running : start() / reset needed
+
+state Running {
+    Running : running = True
+    Running : start_time = perf_counter()
+    Running : spawn particles
+    Running : update physics
+    Running : redraw animation
+    
+    state "Animation Loop" as AnimLoop {
+        [*] --> CalculateProgress
+        CalculateProgress --> UpdateParticles
+        UpdateParticles --> RenderFrame
+        RenderFrame --> CheckCompletion
+        CheckCompletion --> ScheduleNext : not finished
+        CheckCompletion --> [*] : finished
+        ScheduleNext --> CalculateProgress : after 30ms
+    }
+}
+
+Running --> Paused : stop()
+Running --> Completed : timer expires
+
+state Paused {
+    Paused : running = False
+    Paused : preserve elapsed time
+    Paused : maintain particle state
+    Paused : static rendering only
+}
+
+Paused --> Running : start() / resume
+
+state Completed {
+    Completed : running = False
+    Completed : progress = 1.0
+    Completed : all sand in bottom
+    Completed : no active particles
+}
+
+Completed --> Running : start() / reset
+
+' Internal transitions
+Running : update_particles() / create & move particles
+Running : animate() / calculate sand distribution
+Running : redraw() / render all dynamic elements
+
+' Notes
+note right of Running
+    Main animation state with
+    continuous 30ms update cycle
+end note
+
+note right of Paused
+    Preserves all state for
+    seamless resume capability
+end note
+
+@enduml 
